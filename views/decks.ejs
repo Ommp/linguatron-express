@@ -1,0 +1,12 @@
+<%- include('head') %>
+<%- include('nav') %>
+
+<div class="container fixed-grid has-1-cols">
+<h1 class="title decks">Decks</h1>
+  <div class="grid" id="parentdiv">
+    <% decks.forEach(function(deck, index){ %>
+      <button class="cell level" hx-target=".container" hx-trigger="click" hx-swap="innerHTML" hx-get="/deck/<%= deck.deck_id %>"><%= deck.deckname %></button>
+      <% }) %>
+  </div>
+  </div>
+<%- include('footer') %>
