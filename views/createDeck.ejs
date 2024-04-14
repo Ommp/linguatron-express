@@ -1,0 +1,9 @@
+<div class="create">
+<form class="input control" action="/deck/create">
+<div>
+<label for="deckname" class="">Deck name</label>
+<input type="text" name="deckname" id="" class="">
+</div>
+<input type="button" value="Create" hx-post="/deck/create" hx-trigger="click" hx-target=".create" hx-swap="outerHTML">
+</form>
+</div>

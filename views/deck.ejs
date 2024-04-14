@@ -7,6 +7,11 @@
     <button class="button review lr" hx-target=".buttons" hx-trigger="click" hx-swap="outerHTML" hx-get="/deck/<%= deck.deck_id %>/learn"> Review </button>
     <button class="button review lr" hx-target=".buttons" hx-trigger="click" hx-swap="outerHTML" hx-get="/deck/<%= deck.deck_id %>/card/create"> Create a new card </button>
     <button class="button review lr" hx-target=".buttons" hx-trigger="click" hx-swap="outerHTML" hx-get="/deck/<%= deck.deck_id %>/cards"> Cards </button>
+    <form>
+    <input type="text" name="deck_id" id="" value="<%= deck.deck_id %>" hidden>
+    <button class="button review lr is-danger" hx-target=".container" hx-trigger="click" hx-swap="outerHTML" hx-delete="/deck/delete"> Delete </button>
+    </form>
+
     </div>
     </div>
   </div>

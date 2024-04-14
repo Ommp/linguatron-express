@@ -45,12 +45,14 @@ const selectAllDecks = db.query("select * from decks");
 const selectDeckByID = db.prepare("SELECT deck_id, deckname from decks WHERE deck_id = ?");
 const selectAllCardsByDeckID = db.prepare("SELECT * from cards WHERE deck_id = ?");
 
+
 createCardsTable().run();
 createDecksTable().run();
 
 
 const insertCard = db.prepare("INSERT INTO cards (deck_id, question, answer) VALUES ($deck_id, $question, $answer)");
 const insertDeck = db.prepare("INSERT INTO decks (deckname) VALUES ($deckname)");
+const deleteDeck = db.query("DELETE FROM decks WHERE deck_id = ?");
 
 //insert test deck
 // insertDeck.run({
@@ -80,6 +82,47 @@ app.get('/decks', (req, res) => {
 //   const deck = < Deck > selectDeckByID.get(Number(req.params.deck_id));
 //   res.render('deck', {deck: deck});
 // });
+
+app.get('/deck/create', async (req, res) => {
+  ejs.renderFile('views/createDeck.ejs')
+    .then(result => {
+      res.send(result);
+    })
+    .catch(err => {
+      console.error(err);
+    });
+});
+
+//creation of a new deck
+app.post('/deck/create', async (req, res) => {
+
+  insertDeck.run({$deckname: req.body.deckname});
+
+  let decks = <Array<Deck>>selectAllDecks.all();
+  ejs.renderFile('views/updatedDecks.ejs', { decks: decks, title: "Decks" })
+    .then(result => {
+      res.send(result);
+    })
+    .catch(err => {
+      console.error(err);
+    });
+});
+
+//deletion of deck
+app.delete('/deck/delete', async (req, res) => {
+
+  deleteDeck.run(req.body.deck_id);
+
+  let decks = <Array<Deck>>selectAllDecks.all();
+  ejs.renderFile('views/updatedDecks.ejs', { decks: decks, title: "Decks" })
+    .then(result => {
+      res.send(result);
+    })
+    .catch(err => {
+      console.error(err);
+    });
+});
+
 
 app.get('/deck/:deck_id', async (req, res) => {
   const deck = selectDeckByID.get(Number(req.params.deck_id));
