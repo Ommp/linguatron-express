@@ -1,7 +1,12 @@
-<%- include('head') %>
-
-<h1>Deck dashboard</h1>
-
-<h2><%= deck.deck_id %></h2>
-
-<%- include('footer') %>
+<div class="container fixed-grid has-1-cols">
+    <div id="deck"> 
+    <h2 class="title"><%= deck.deckname %> </h2>
+    <h4>Deck ID: <%= deck.deck_id %></h4>
+    <div class="buttons">
+    <button class="button learn lr" hx-target=".buttons" hx-trigger="click" hx-swap="outerHTML" hx-get="/deck/<%= deck.deck_id %>/learn"> Learn </button>
+    <button class="button review lr" hx-target=".buttons" hx-trigger="click" hx-swap="outerHTML" hx-get="/deck/<%= deck.deck_id %>/learn"> Review </button>
+    <button class="button review lr" hx-target=".buttons" hx-trigger="click" hx-swap="outerHTML" hx-get="/deck/<%= deck.deck_id %>/card/create"> Create a new card </button>
+    <button class="button review lr" hx-target=".buttons" hx-trigger="click" hx-swap="outerHTML" hx-get="/deck/<%= deck.deck_id %>/cards"> Cards </button>
+    </div>
+    </div>
+  </div>

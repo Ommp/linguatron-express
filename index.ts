@@ -5,7 +5,7 @@ import bodyParser from "body-parser";
 
 import { Database } from "bun:sqlite";
 
-import { compile } from "ejs";
+import ejs from "ejs";
 
 const app: Express = express();
 
@@ -43,7 +43,7 @@ function createDecksTable() {
 const selectAllDecks = db.query("select * from decks");
 
 const selectDeckByID = db.prepare("SELECT deck_id, deckname from decks WHERE deck_id = ?");
-const selectAllCardsByDeckID = db.prepare("SELECT card_id, question, answer from cards WHERE deck_id = ?");
+const selectAllCardsByDeckID = db.prepare("SELECT * from cards WHERE deck_id = ?");
 
 createCardsTable().run();
 createDecksTable().run();
@@ -81,20 +81,81 @@ app.get('/decks', (req, res) => {
 //   res.render('deck', {deck: deck});
 // });
 
-app.get('/deck/:deck_id', (req, res) => {
-    const deck = selectDeckByID.get(Number(req.params.deck_id));
-    res.send(`<div class="container fixed-grid has-1-cols">
-    <div id=deck> 
-    <h1 class="title">Deck: ${deck.deckname} </h1>
-    <div class="buttons">
-    <button class="button learn lr" hx-target=".buttons" hx-trigger="click" hx-swap="outerHTML" hx-post="/deck/${Number(req.params.deck_id)}/learn"> Learn </button>
-    <button class="button review lr" hx-target=".buttons" hx-trigger="click" hx-swap="outerHTML" hx-post="/deck/${Number(req.params.deck_id)}/learn"> Review </button>
-    </div>
-    </div>
-  </div>`);
-  
+app.get('/deck/:deck_id', async (req, res) => {
+  const deck = selectDeckByID.get(Number(req.params.deck_id));
+  ejs.renderFile('views/deck.ejs', { deck: deck })
+    .then(result => {
+      res.send(result);
+    })
+    .catch(err => {
+      console.error(err);
+    });
 });
-app.post('/deck/:deck_id/learn', (req, res) => {
+
+app.get('/deck/:deck_id/cards', async (req, res) => {
+  const deck = <Deck>selectDeckByID.get(Number(req.params.deck_id));
+
+  const cards = <Array<Card>>selectAllCardsByDeckID.all(deck.deck_id);
+
+  console.log(cards);
+
+  ejs.renderFile('views/cards.ejs', { cards: cards, deck: deck })
+    .then(result => {
+      res.send(result);
+    })
+    .catch(err => {
+      console.error(err);
+    });
+});
+
+
+app.get('/deck/:deck_id/card/create', async (req, res) => {
+  const deck = selectDeckByID.get(Number(req.params.deck_id));
+  ejs.renderFile('views/createCard.ejs', { deck: deck })
+    .then(result => {
+      res.send(result);
+    })
+    .catch(err => {
+      console.error(err);
+    });
+});
+app.post('/deck/:deck_id/card/create', async (req, res) => {
+
+const body = req.body;
+console.log(body);
+
+
+  const deck = <Deck>selectDeckByID.get(Number(req.params.deck_id));
+   insertCard.run({
+    $deck_id: body.deck_id,
+    $question: body.question,
+    $answer: body.answer
+  });
+
+  console.log(req.params.deck_id)
+  ejs.renderFile('views/deck.ejs', { deck: deck })
+    .then(result => {
+      res.send(result);
+    })
+    .catch(err => {
+      console.error(err);
+    });
+});
+// app.post('/deck/:deck_id/create', async (req, res) => {
+//   const input = req.body;
+
+
+//   const deck = selectDeckByID.get(Number(req.params.deck_id));
+//   ejs.renderFile('views/deck.ejs', { deck: deck })
+//     .then(result => {
+//       res.send(result);
+//     })
+//     .catch(err => {
+//       console.error(err);
+//     });
+// });
+
+app.get('/deck/:deck_id/learn', (req, res) => {
   const cards = selectAllCardsByDeckID.all(Number(req.params.deck_id));
   res.send(`htmx`);
 });

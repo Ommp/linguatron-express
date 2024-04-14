@@ -1,0 +1,8 @@
+<div class="container fixed-grid has-1-cols">
+<h1 class="title decks">Cards</h1>
+  <div class="grid" id="parentdiv">
+    <% cards.forEach(function(card, index){ %>
+      <button class="cell level" hx-target=".container" hx-trigger="click" hx-swap="innerHTML" hx-get="/deck/<%= deck.deck_id %>"><%= card.question %></button>
+      <% }) %>
+  </div>
+  </div>
