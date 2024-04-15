@@ -92,6 +92,21 @@ app.get('/deck/create', async (req, res) => {
       console.error(err);
     });
 });
+app.get('/deck/:deck_id/learn', async (req, res) => {
+
+
+  const deck = <Deck>selectDeckByID.get(Number(req.params.deck_id));
+  const cards = <Array<Card>>selectAllCardsByDeckID.all(deck.deck_id);
+  const card = <Card>cards[Math.floor(Math.random() * cards.length)];
+
+  ejs.renderFile('views/learn.ejs', {card: card, deck: deck})
+    .then(result => {
+      res.send(result);
+    })
+    .catch(err => {
+      console.error(err);
+    });
+});
 
 //creation of a new deck
 app.post('/deck/create', async (req, res) => {
@@ -197,11 +212,6 @@ console.log(body);
 //       console.error(err);
 //     });
 // });
-
-app.get('/deck/:deck_id/learn', (req, res) => {
-  const cards = selectAllCardsByDeckID.all(Number(req.params.deck_id));
-  res.send(`htmx`);
-});
 
 app.listen(3000, () =>
   console.log('Example app listening on 127.0.0.1:3000'),

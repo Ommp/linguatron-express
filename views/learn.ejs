@@ -1,0 +1,4 @@
+<div id="question">
+<h3><%= card.question %></h3>
+<input type="text" name="answer" id="" hx-trigger="keyup[keyCode==13]" hx-get="/deck/<%= deck.deck_id %>/learn" hx-swap="innerHTML" hx-target="#question" autofocus>
+</div>
