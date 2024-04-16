@@ -5,17 +5,10 @@ import bodyParser from "body-parser";
 
 import { Database } from "bun:sqlite";
 
-import ejs from "ejs";
-
 const app: Express = express();
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
-
-app.use(express.static('public'));
-// app.use(express.static(path.join(__dirname, 'public')))
-app.set('view engine', 'ejs');
-// app.set('views', path.join(__dirname, 'views'));
 
 interface Deck {
   deck_id: number,
@@ -54,164 +47,57 @@ const insertCard = db.prepare("INSERT INTO cards (deck_id, question, answer) VAL
 const insertDeck = db.prepare("INSERT INTO decks (deckname) VALUES ($deckname)");
 const deleteDeck = db.query("DELETE FROM decks WHERE deck_id = ?");
 
-//insert test deck
-// insertDeck.run({
-//   $deckname: "Spanish"
-// });
 
-//insert test card
-//  insertCard.run({
-//   $deck_id: 1,
-//   $question: "la palabra",
-//   $answer: "word",
-// });
-
-app.get('/', (req, res) => {
-  res.render('index', { foo: "FOO", title: "Home"});
-});
-app.post('/clicked', (req, res) => {
-  res.send(selectAllDecks.all());
-});
-
-app.get('/decks', (req, res) => {
+//API
+app.get('/api/decks', (req, res) => {
   let decks = <Array<Deck>>selectAllDecks.all();
-  res.render('decks', { decks: decks, title: "Decks" });
+  res.json({ decks: decks });
 });
-
-// app.get('/deck/:deck_id', (req, res) => {
-//   const deck = < Deck > selectDeckByID.get(Number(req.params.deck_id));
-//   res.render('deck', {deck: deck});
-// });
-
-app.get('/deck/create', async (req, res) => {
-  ejs.renderFile('views/createDeck.ejs')
-    .then(result => {
-      res.send(result);
-    })
-    .catch(err => {
-      console.error(err);
-    });
-});
-app.get('/deck/:deck_id/learn', async (req, res) => {
-
-
-  const deck = <Deck>selectDeckByID.get(Number(req.params.deck_id));
-  const cards = <Array<Card>>selectAllCardsByDeckID.all(deck.deck_id);
-  const card = <Card>cards[Math.floor(Math.random() * cards.length)];
-
-  ejs.renderFile('views/learn.ejs', {card: card, deck: deck})
-    .then(result => {
-      res.send(result);
-    })
-    .catch(err => {
-      console.error(err);
-    });
-});
-
-//creation of a new deck
-app.post('/deck/create', async (req, res) => {
-
-  insertDeck.run({$deckname: req.body.deckname});
-
-  let decks = <Array<Deck>>selectAllDecks.all();
-  ejs.renderFile('views/updatedDecks.ejs', { decks: decks, title: "Decks" })
-    .then(result => {
-      res.send(result);
-    })
-    .catch(err => {
-      console.error(err);
-    });
-});
-
-//deletion of deck
-app.delete('/deck/delete', async (req, res) => {
-
-  deleteDeck.run(req.body.deck_id);
-
-  let decks = <Array<Deck>>selectAllDecks.all();
-  ejs.renderFile('views/updatedDecks.ejs', { decks: decks, title: "Decks" })
-    .then(result => {
-      res.send(result);
-    })
-    .catch(err => {
-      console.error(err);
-    });
-});
-
-
-app.get('/deck/:deck_id', async (req, res) => {
+app.get('/api/deck/:deck_id', async (req, res) => {
   const deck = selectDeckByID.get(Number(req.params.deck_id));
-  ejs.renderFile('views/deck.ejs', { deck: deck })
-    .then(result => {
-      res.send(result);
-    })
-    .catch(err => {
-      console.error(err);
-    });
+  res.json({ deck: deck });
 });
-
-app.get('/deck/:deck_id/cards', async (req, res) => {
+app.get('/api/deck/:deck_id/cards', async (req, res) => {
   const deck = <Deck>selectDeckByID.get(Number(req.params.deck_id));
 
   const cards = <Array<Card>>selectAllCardsByDeckID.all(deck.deck_id);
 
-  console.log(cards);
-
-  ejs.renderFile('views/cards.ejs', { cards: cards, deck: deck })
-    .then(result => {
-      res.send(result);
-    })
-    .catch(err => {
-      console.error(err);
-    });
+  res.json({ cards: cards });
 });
-
-
-app.get('/deck/:deck_id/card/create', async (req, res) => {
-  const deck = selectDeckByID.get(Number(req.params.deck_id));
-  ejs.renderFile('views/createCard.ejs', { deck: deck })
-    .then(result => {
-      res.send(result);
-    })
-    .catch(err => {
-      console.error(err);
-    });
+app.post('/api/deck/create', async (req, res) => {
+  try {
+    insertDeck.run({ $deckname: req.body.deckname });
+    res.send(`{"status": "success"}`);
+  } catch (error) {
+    console.error(error);
+    res.json(error);
+  }
 });
-app.post('/deck/:deck_id/card/create', async (req, res) => {
-
-const body = req.body;
-console.log(body);
-
-
-  const deck = <Deck>selectDeckByID.get(Number(req.params.deck_id));
-   insertCard.run({
-    $deck_id: body.deck_id,
-    $question: body.question,
-    $answer: body.answer
-  });
-
-  console.log(req.params.deck_id)
-  ejs.renderFile('views/deck.ejs', { deck: deck })
-    .then(result => {
-      res.send(result);
-    })
-    .catch(err => {
-      console.error(err);
-    });
+app.delete('/api/deck/delete', async (req, res) => {
+  try {
+    deleteDeck.run(req.body.deck_id);
+    res.send(`{"status": "success"}`);
+    res.status(200);
+  } catch (error) {
+    console.error(error);
+    res.json(error);
+  }
 });
-// app.post('/deck/:deck_id/create', async (req, res) => {
-//   const input = req.body;
+app.post('/api/deck/:deck_id/card/create', async (req, res) => {
+  const body = req.body;
 
-
-//   const deck = selectDeckByID.get(Number(req.params.deck_id));
-//   ejs.renderFile('views/deck.ejs', { deck: deck })
-//     .then(result => {
-//       res.send(result);
-//     })
-//     .catch(err => {
-//       console.error(err);
-//     });
-// });
+  try {
+    insertCard.run({
+      $deck_id: body.deck_id,
+      $question: body.question,
+      $answer: body.answer
+    });
+    res.status(200);
+  } catch (error) {
+    console.error(error);
+    res.send(error);
+  }
+});
 
 app.listen(3000, () =>
   console.log('Example app listening on 127.0.0.1:3000'),
