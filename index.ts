@@ -30,12 +30,15 @@ const db = new Database("mydb.sqlite");
 db.exec("PRAGMA journal_mode = WAL;");
 
 function createCardsTable() {
-  return db.query("CREATE TABLE IF NOT EXISTS cards (card_id INTEGER PRIMARY KEY, deck_id INTEGER, correct INTEGER, incorrect INTEGER, card_created TEXT, last_review_date TEXT, stage TEXT, lapses INTEGER, ease REAL, review_due_date TEXT, question TEXT, answer TEXT, FOREIGN KEY (deck_id) REFERENCES decks(deck_id) ON DELETE CASCADE)");
+  return db.query("CREATE TABLE IF NOT EXISTS cards (card_id INTEGER PRIMARY KEY, deck_id INTEGER, correct INTEGER DEFAULT 0, incorrect INTEGER DEFAULT 0, card_created TEXT, last_review_date TEXT, stage TEXT DEFAULT learning, lapses INTEGER DEFAULT 0, ease REAL DEFAULT 1.00, review_due_date TEXT, question TEXT, answer TEXT, FOREIGN KEY (deck_id) REFERENCES decks(deck_id) ON DELETE CASCADE)");
 }
 
 function createDecksTable() {
   return db.query("CREATE TABLE IF NOT EXISTS decks (deck_id INTEGER PRIMARY KEY, deckname TEXT)");
 }
+
+createCardsTable().run();
+createDecksTable().run();
 
 const selectAllDecks = db.query("select * from decks");
 
@@ -43,8 +46,6 @@ const selectDeckByID = db.prepare("SELECT deck_id, deckname from decks WHERE dec
 const selectAllCardsByDeckID = db.prepare("SELECT * from cards WHERE deck_id = ?");
 
 
-createCardsTable().run();
-createDecksTable().run();
 
 
 const insertCard = db.prepare("INSERT INTO cards (deck_id, question, answer) VALUES ($deck_id, $question, $answer)");
