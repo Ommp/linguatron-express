@@ -24,8 +24,8 @@ interface Card {
   answer: string,
   question: string,
   last_review_date: string,
+  review_due_date: string,
   card_created: string,
-  card_created_time_zone: string,
   stage: string,
   ease: number,
   correct: number,
@@ -38,7 +38,7 @@ const db = new Database("mydb.sqlite");
 db.exec("PRAGMA journal_mode = WAL;");
 
 function createCardsTable() {
-  return db.query("CREATE TABLE IF NOT EXISTS cards (card_id INTEGER PRIMARY KEY, deck_id INTEGER, correct INTEGER DEFAULT 0, incorrect INTEGER DEFAULT 0, card_created TEXT, card_created_time_zone TEXT, last_review_date TEXT,last_time_zone TEXT, stage TEXT DEFAULT learning, lapses INTEGER DEFAULT 0, ease REAL DEFAULT 1.00, review_due_date TEXT, question TEXT, answer TEXT, FOREIGN KEY (deck_id) REFERENCES decks(deck_id) ON DELETE CASCADE)");
+  return db.query("CREATE TABLE IF NOT EXISTS cards (card_id INTEGER PRIMARY KEY, deck_id INTEGER, correct INTEGER DEFAULT 0, incorrect INTEGER DEFAULT 0, card_created TEXT, last_review_date TEXT, stage TEXT DEFAULT learning, lapses INTEGER DEFAULT 0, ease REAL DEFAULT 1.00, review_due_date TEXT, question TEXT, answer TEXT, FOREIGN KEY (deck_id) REFERENCES decks(deck_id) ON DELETE CASCADE)");
 }
 
 function createDecksTable() {
@@ -55,17 +55,27 @@ const selectAllCardsByDeckID = db.prepare("SELECT * from cards WHERE deck_id = ?
 const selectCardByCardID = db.prepare("SELECT * from cards WHERE card_id = ?");
 const selectLearningCardsByDeckID = db.prepare("SELECT * from cards WHERE deck_id = ? AND stage = 'learning'");
 const selectReviewCardsByDeckID = db.prepare("SELECT * from cards WHERE deck_id = ? AND stage = 'review'");
-const updateLearningCard = db.prepare("UPDATE cards SET correct = ?, incorrect = ?, ease = ?, review_due_date = ?, stage = ? WHERE card_id = ?");
-const updateLearningCardWithoutDate = db.prepare("UPDATE cards SET correct = ?, incorrect = ?, ease = ?, stage = ? WHERE card_id = ?");
-const updateReviewCard = db.prepare("UPDATE cards SET correct = ?, incorrect = ?, ease = ?, lapses = ?, review_due_date = ?, stage = ? WHERE card_id = ?");
+const updateLearningCard = db.prepare("UPDATE cards SET correct = ?, incorrect = ?, ease = ?, stage = ?, review_due_date = ?, last_review_date = ?  WHERE card_id = ?")
+const updateReviewCard = db.prepare("UPDATE cards SET correct = ?, incorrect = ?, ease = ?, lapses = ?, last_review_date = ?, review_due_date = ? WHERE card_id = ?");
 
 
 
 
-const insertCard = db.prepare("INSERT INTO cards (deck_id, question, answer) VALUES ($deck_id, $question, $answer)");
+const insertCard = db.prepare("INSERT INTO cards (deck_id, question, answer, card_created) VALUES ($deck_id, $question, $answer, $card_created)");
 const insertDeck = db.prepare("INSERT INTO decks (deckname) VALUES ($deckname)");
 const deleteDeck = db.query("DELETE FROM decks WHERE deck_id = ?");
 const deleteCard = db.query("DELETE FROM cards WHERE card_id = ?");
+
+
+function getNextEaseLevel(currentEase: number) {
+  // Check for initial value (1)
+  if (currentEase === 1) {
+    return 2;
+  }
+  // Formula for sequence: 0.5 * n^2 + 0.5 * n + 1 (n = position in sequence)
+  const position = Math.sqrt(currentEase - 1) + 1; // Find position based on current ease
+  return 0.5 * Math.pow(position, 2) + 0.5 * position + 1;
+}
 
 
 //API
@@ -97,12 +107,58 @@ app.get('/api/deck/:deck_id/randomlearningcards', async (req, res) => {
 
   res.json(randomCards);
 });
+//Retrieve and return review cards in random order for a given deck
+app.get('/api/deck/:deck_id/randomreviewcards', async (req, res) => {
+  const deck = <Deck>selectDeckByID.get(Number(req.params.deck_id));
+
+  const cards = <Array<Card>>selectReviewCardsByDeckID.all(deck.deck_id);
+  const dueCards = <Array<Card>>[];
+
+  for (let card = 0; card < cards.length; card++) {
+    const element = cards[card];
+
+    const currentDate = new Date();
+    const reviewDueDate = new Date(element.review_due_date);
+
+    if (reviewDueDate <= currentDate) {
+      dueCards.push(element);
+      console.log(element);
+    }
+  }
+
+  // cards.sort(() => Math.random() - 0.5);
+
+  // const randomCards = cards.slice(0, Math.min(cards.length, 10));
+
+  res.json(dueCards);
+});
+//Retrieve and return random cards for multiple choice answers
+app.get('/api/deck/:deck_id/multiplechoicecards', async (req, res) => {
+  const deck = <Deck>selectDeckByID.get(Number(req.params.deck_id));
+
+  const cards = <Array<Card>>selectAllCardsByDeckID.all(deck.deck_id);
+
+  cards.sort(() => Math.random() - 0.5);
+
+  const randomCards = cards.slice(0, Math.min(cards.length, 3));
+
+  res.json(randomCards);
+});
+
+
+
+// db.prepare("UPDATE cards SET correct = ?, incorrect = ?, ease = ?, stage = ?, review_due_date = ?, last_review_date = ?  WHERE card_id = ?")
+
 
 //UPDATE learning card after a user has answered
 app.put('/api/learning/updatecard', async (req, res) => {
 
   try {
     if (req.body.answer != null && req.body.card_id != null) {
+
+
+      const lastReviewDateString = req.body.last_review_date;
+      const DateForDueDate = new Date(lastReviewDateString);
 
       const answer = <String>req.body.answer.toLowerCase();
       const card_id = <number>req.body.card_id;
@@ -112,33 +168,40 @@ app.put('/api/learning/updatecard', async (req, res) => {
 
       //if answer correct two times in a row, set stage to review
       if (answer == card.answer.toLowerCase() && req.body.correct_in_a_row == 2) {
-        updateLearningCardWithoutDate.run([
+        DateForDueDate.setUTCDate(DateForDueDate.getUTCDate() + 1);
+        updateLearningCard.run([
           card.correct + 1,
           card.incorrect,
-          ((card.ease * 1.1) + 1),
+          getNextEaseLevel(card.ease),
           "review",
+          DateForDueDate.toISOString(),
+          req.body.last_review_date,
           card_id,
-        ])
+        ] as any)
       } 
       //wrong answer
       else if (answer !== card.answer.toLowerCase() && card_id != null) {
-        updateLearningCardWithoutDate.run([
+        updateLearningCard.run([
           card.correct,
           card.incorrect + 1,
-          ((card.ease * -1.1) - 1),
+          1 /*ease */,
           "learning",
+          DateForDueDate.toISOString(),
+          req.body.last_review_date,
           card_id,
-        ]);
+        ] as any);
       }
 
-      else {
-        updateLearningCardWithoutDate.run([
+      else /* one correct */{
+        updateLearningCard.run([
           card.correct + 1,
           card.incorrect,
-          ((card.ease * 1.1) + 1),
+          1,
           "learning",
+          DateForDueDate.toISOString(),
+          req.body.last_review_date,
           card_id,
-      ])
+      ] as any)
       }
 
 
@@ -153,6 +216,74 @@ app.put('/api/learning/updatecard', async (req, res) => {
   }
 
 });
+
+// "UPDATE cards SET correct = ?, incorrect = ?, ease = ?, lapses = ?, review_due_date = ? WHERE card_id = ?"
+
+//UPDATE review card after a user has answered
+app.put('/api/review/updatecard', async (req, res) => {
+
+  try {
+    if (req.body.answer != null && req.body.card_id != null) {
+
+      const lastReviewDateString = req.body.last_review_date;
+      const DateForDueDate = new Date(lastReviewDateString);
+
+      const answer = <String>req.body.answer.toLowerCase();
+      const card_id = <number>req.body.card_id;
+
+      const card = <Card>selectCardByCardID.get(card_id);
+      res.send(`{"status": "correct_in_a_row received is: ${req.body.correct_in_a_row}, card id received is: ${req.body.card_id}"}`);
+
+      // ("UPDATE cards SET correct = ?, incorrect = ?, ease = ?, lapses = ?, last_review_date = ?, review_due_date = ?,  WHERE card_id = ?");
+
+      //wrong answer
+      if (answer !== card.answer.toLowerCase() && card_id != null) {
+        updateReviewCard.run([
+          card.correct,
+          card.incorrect + 1,
+          1 /*ease */,
+          card.lapses + 1,
+          lastReviewDateString,
+          DateForDueDate.toISOString(),
+          card_id,
+        ] as any);
+      }
+
+      //correct answer
+      else if (answer === card.answer.toLowerCase() && card_id != null) {
+
+
+        if (card.ease == 1) {
+          DateForDueDate.setMinutes(DateForDueDate.getUTCMinutes() + 5);
+        } else if (card.ease > 1) {
+          const daysToAdd = Math.round(getNextEaseLevel(card.ease));
+          DateForDueDate.setDate(DateForDueDate.getUTCDate() + daysToAdd);
+        }
+
+        updateReviewCard.run([
+          card.correct + 1,
+          card.incorrect,
+          getNextEaseLevel(card.ease),
+          card.lapses,
+          lastReviewDateString,
+          DateForDueDate.toISOString(),
+          card_id,
+        ] as any)
+      }
+
+
+      res.send(`{"status": "success"}`);
+    } else {
+      res.send("missing deck name");
+    }
+
+  } catch (error) {
+    console.error(error);
+    res.json(error);
+  }
+
+});
+
 // Retrieve and return all learning cards for a given deck
 app.get('/api/deck/:deck_id/cards/learning', async (req, res) => {
   const deck = <Deck>selectDeckByID.get(Number(req.params.deck_id));
@@ -164,7 +295,7 @@ app.get('/api/deck/:deck_id/cards/learning', async (req, res) => {
 app.get('/api/deck/:deck_id/cards/review', async (req, res) => {
   const deck = <Deck>selectDeckByID.get(Number(req.params.deck_id));
 
-  const cards = <Array<Card>>selectLearningCardsByDeckID.all(deck.deck_id, "review");
+  const cards = <Array<Card>>selectReviewCardsByDeckID.all(deck.deck_id);
 
   res.json(cards);
 });
@@ -244,7 +375,8 @@ app.post('/api/deck/:deck_id/card/create', async (req, res) => {
       insertCard.run({
         $deck_id: body.deck_id,
         $question: body.question,
-        $answer: body.answer
+        $answer: body.answer,
+        $card_created: body.card_created
       });
       res.json({ success: true, message: "Card created successfully" }).status(200);
     }
