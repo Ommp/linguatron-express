@@ -81,7 +81,7 @@ function getNextEaseLevel(currentEase: number) {
 //API
 app.get('/api/decks', (req, res) => {
   let decks = <Array<Deck>>selectAllDecks.all();
-  console.log(decks);
+  // console.log(decks);
   res.json(decks);
 });
 app.get('/api/deck/:deck_id', async (req, res) => {
@@ -122,7 +122,7 @@ app.get('/api/deck/:deck_id/randomreviewcards', async (req, res) => {
 
     if (reviewDueDate <= currentDate) {
       dueCards.push(element);
-      console.log(element);
+      // console.log(element);
     }
   }
 
@@ -133,16 +133,30 @@ app.get('/api/deck/:deck_id/randomreviewcards', async (req, res) => {
   res.json(dueCards);
 });
 //Retrieve and return random cards for multiple choice answers
-app.get('/api/deck/:deck_id/multiplechoicecards', async (req, res) => {
+app.get('/api/deck/:deck_id/multiplechoicecards/:card_id', async (req, res) => {
   const deck = <Deck>selectDeckByID.get(Number(req.params.deck_id));
+
+  const correctCard = <Card>selectCardByCardID.get(Number(req.params.card_id));
 
   const cards = <Array<Card>>selectAllCardsByDeckID.all(deck.deck_id);
 
-  cards.sort(() => Math.random() - 0.5);
+  const randomCards = new Map();
 
-  const randomCards = cards.slice(0, Math.min(cards.length, 3));
+  randomCards.set(correctCard.card_id, correctCard);
 
-  res.json(randomCards);
+  while (randomCards.size < 4) {
+    const randomCard = cards[Math.floor(Math.random() * cards.length)];
+    console.log("random card" + randomCard.card_id);
+    randomCards.set(randomCard.card_id, randomCard);
+    console.log(randomCards.size);
+  }
+
+  const randomCardsArray = Array.from(randomCards.values());
+
+  randomCardsArray.sort(() => Math.random() - 0.5);
+
+  console.log(randomCardsArray);
+  res.json(randomCardsArray);
 });
 
 
