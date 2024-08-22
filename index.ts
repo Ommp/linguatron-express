@@ -144,18 +144,25 @@ app.get('/api/deck/:deck_id/multiplechoicecards/:card_id', async (req, res) => {
 
   randomCards.set(correctCard.card_id, correctCard);
 
+if (cards.length >= 4) {
   while (randomCards.size < 4) {
     const randomCard = cards[Math.floor(Math.random() * cards.length)];
     console.log("random card" + randomCard.card_id);
     randomCards.set(randomCard.card_id, randomCard);
-    console.log(randomCards.size);
+
   }
+} else {
+  for (let index = 0; index < cards.length; index++) {
+    randomCards.set(cards[index].card_id, cards[index])
+  }
+}
+
+
 
   const randomCardsArray = Array.from(randomCards.values());
 
   randomCardsArray.sort(() => Math.random() - 0.5);
 
-  console.log(randomCardsArray);
   res.json(randomCardsArray);
 });
 
